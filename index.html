@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PS-007 Privacy-Aware IPv6 Monitor</title>
+<style>
+:root{font-family:Inter,Segoe UI,Arial,sans-serif;color:#172033;background:#f4f7fb}
+body{margin:0}header{background:#10233f;color:white;padding:24px max(20px,calc((100% - 1100px)/2))}
+header h1{margin:0 0 8px;font-size:25px}header p{margin:0;color:#d8e4f4}
+main{max-width:1100px;margin:24px auto;padding:0 18px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.card{background:white;border:1px solid #dce4ef;border-radius:14px;padding:18px;box-shadow:0 3px 12px #1720330b}
+.metric{font-size:27px;font-weight:750;margin-top:8px}.muted{color:#64748b;font-size:13px}
+h2{font-size:18px;margin:0 0 14px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+button{border:0;border-radius:9px;padding:11px 14px;font-weight:650;cursor:pointer;background:#155eef;color:white}
+button.secondary{background:#e8eef8;color:#172033}button.danger{background:#b42318}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:11px 8px;border-bottom:1px solid #e8edf4}th{color:#64748b;font-size:12px;text-transform:uppercase}
+.pill{display:inline-block;padding:4px 8px;border-radius:99px;font-size:12px;font-weight:700}.ok{background:#dcfae6;color:#067647}.warn{background:#fff0c2;color:#854d0e}.high{background:#fee4e2;color:#b42318}
+input,select{padding:10px;border:1px solid #cbd5e1;border-radius:8px;width:100%;box-sizing:border-box;margin-top:6px}
+.formgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+footer{max-width:1100px;margin:25px auto;padding:0 18px 30px;color:#64748b;font-size:12px}
+#notice{margin-top:12px;color:#067647;font-weight:600}
+</style></head>
+<body>
+<header><h1>Privacy-Aware IPv6 IoT Security Monitor</h1><p>AIORI-3 · PS-007 · Last Minute Coders · A3-PS007-TC236</p></header>
+<main>
+<div class="grid">
+<div class="card"><div class="muted">Monitored events</div><div class="metric" id="events">3</div><div class="muted">Synthetic demo data</div></div>
+<div class="card"><div class="muted">Alerts for review</div><div class="metric" id="alerts">1</div><div class="muted">Heuristic signals, not proof of attack</div></div>
+<div class="card"><div class="muted">Raw IPv6 shown in summary</div><div class="metric">0</div><div class="muted">Addresses are redacted</div></div>
+</div>
+<div class="card" style="margin-top:16px">
+<h2>Simulate telemetry</h2>
+<div class="formgrid">
+<label>Device label<input id="device" value="sensor-07"></label>
+<label>IPv6 address<input id="ip" value="2001:db8:1::25"></label>
+<label>Event type<select id="kind"><option>heartbeat</option><option>reconnect</option><option>address_rotation</option></select></label>
+<label>Network segment<input id="segment" value="lab-net-a"></label>
+</div>
+<div class="actions"><button onclick="submitEvent()">Submit telemetry</button><button class="secondary" onclick="simulateRotation()">Simulate address rotation</button><button class="secondary" onclick="resetDemo()">Reset demo</button></div>
+<div id="notice" role="status"></div>
+</div>
+<div class="card" style="margin-top:16px">
+<h2>Privacy-aware event summary</h2>
+<table><thead><tr><th>Time</th><th>Pseudonymous device</th><th>Event</th><th>IPv6 address</th><th>Risk</th></tr></thead><tbody id="rows"></tbody></table>
+</div>
+<div class="card" style="margin-top:16px">
+<h2>Alerts</h2><div id="alertList" class="muted">No alerts.</div>
+</div>
+</main>
+<footer>Educational prototype using synthetic data and client-side heuristics. It is not a production security product and does not contact or monitor real IoT devices. Address rotation can be legitimate; alerts require human review.</footer>
+<script>
+const initial=[
+{time:"21:01:02",device:"sensor-07",ip:"2001:db8:1::10",kind:"heartbeat",risk:8,segment:"lab-net-a"},
+{time:"21:01:20",device:"sensor-07",ip:"2001:db8:1::25",kind:"address_rotation",risk:72,segment:"lab-net-a"},
+{time:"21:01:28",device:"sensor-09",ip:"2001:db8:2::4",kind:"heartbeat",risk:5,segment:"lab-net-b"}
+];
+let events=[];
+function pseudonym(s){let h=2166136261;for(let c of s)h=Math.imul(h^c.charCodeAt(0),16777619);return "dev-"+(h>>>0).toString(16).slice(0,6).toUpperCase()}
+function riskFor(kind){return kind==="address_rotation"?72:kind==="reconnect"?48:5}
+function safeIP(ip){return ip?ip.split(":").slice(0,2).join(":")+":…:REDACTED":"redacted"}
+function add(e){events.unshift({...e,time:new Date().toLocaleTimeString()});render()}
+function render(){
+ document.getElementById("events").textContent=events.length;
+ const high=events.filter(e=>e.risk>=45).length;document.getElementById("alerts").textContent=high;
+ document.getElementById("rows").innerHTML=events.map(e=>`<tr><td>${e.time}</td><td>${pseudonym(e.device)}</td><td>${e.kind}</td><td>${safeIP(e.ip)}</td><td><span class="pill ${e.risk>=70?'high':e.risk>=40?'warn':'ok'}">${e.risk}/100</span></td></tr>`).join("");
+ const a=events.filter(e=>e.risk>=40);
+ document.getElementById("alertList").innerHTML=a.length?a.map(e=>`<p><span class="pill ${e.risk>=70?'high':'warn'}">${e.risk>=70?'HIGH':'MEDIUM'}</span> <b>${pseudonym(e.device)}</b> — ${e.kind.replaceAll("_"," ")} pattern detected in ${e.segment}. Review surrounding events; this is a heuristic signal, not proof of malicious activity.</p>`).join(""):"No alerts. All current demo events are low-risk.";
+}
+function submitEvent(){let device=document.getElementById("device").value.trim(),ip=document.getElementById("ip").value.trim(),kind=document.getElementById("kind").value,segment=document.getElementById("segment").value.trim();if(!device||!ip){document.getElementById("notice").textContent="Enter a device label and IPv6 address.";return}add({device,ip,kind,segment,risk:riskFor(kind)});document.getElementById("notice").textContent="Event recorded locally. Public summary uses a pseudonym and redacted address."}
+function simulateRotation(){document.getElementById("kind").value="address_rotation";document.getElementById("ip").value="2001:db8:1::"+Math.floor(30+Math.random()*200);submitEvent()}
+function resetDemo(){events=initial.map(x=>({...x}));document.getElementById("notice").textContent="Demo reset using synthetic sample events.";render()}
+resetDemo();
+</script></body></html>
