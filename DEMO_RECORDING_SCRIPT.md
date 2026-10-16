@@ -19,6 +19,23 @@ python tools\generate_explainer_video.py
 Use the shot list below to record the live API behavior separately or add a
 spoken narration to the generated explainer before uploading.
 
+## Run the working demo
+
+From the repository root, install the project dependencies and run:
+
+```powershell
+pip install -r requirements.txt
+$env:DATABASE_URL = "sqlite:///./data/hackathon-demo.db"
+$env:SECRET_KEY = "demo-only-change-before-use"
+python demo.py
+```
+
+The script starts the API, sends normal and rotated-address events, and prints
+the resulting summary and alerts. It leaves the API running so you can show
+`http://localhost:8000/docs`; press `Ctrl+C` to stop it. Use
+`python demo.py --exit-after-demo` to shut down automatically after the
+walkthrough.
+
 ## Before recording
 
 1. Install the requirements and start the service with a dedicated demo database

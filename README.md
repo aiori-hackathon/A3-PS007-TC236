@@ -131,13 +131,28 @@ curl http://localhost:8000/api/v1/alerts
 
 ## 9. Demo Flow
 
-1. Start the API server.
-2. Send a normal device telemetry event.
-3. Send two additional events for that device with distinct IPv6 addresses within 15 minutes.
-4. Observe the generated alert and summary.
-5. Verify that the output remains privacy-aware and redacted.
+Run the complete walkthrough from the repository root:
 
-This creates a clear, convincing hackathon demo showing that the system identifies suspicious rotation patterns without exposing private data.
+```bash
+pip install -r requirements.txt
+python demo.py
+```
+
+The script starts the API server, sends normal and rotated-address events,
+prints the summary and alerts, and leaves the API running for exploration.
+Press `Ctrl+C` to stop it. To stop the server automatically after the
+walkthrough (useful for automated checks), run `python demo.py --exit-after-demo`.
+
+For a fresh run, use a dedicated demo database. In PowerShell:
+
+```powershell
+$env:DATABASE_URL = "sqlite:///./data/hackathon-demo.db"
+$env:SECRET_KEY = "demo-only-change-before-use"
+python demo.py --exit-after-demo
+```
+
+The detector raises an alert after two or more consecutive address changes
+within 15 minutes. The demo uses documentation-only IPv6 addresses.
 
 ## 10. Demo Video
 

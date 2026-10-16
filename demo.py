@@ -14,13 +14,14 @@ Run this from the project root:
     python demo.py
 """
 
-import requests
-import time
+import argparse
 import json
-from datetime import datetime, timedelta
-import sys
-import subprocess
 import os
+import subprocess
+import sys
+import time
+
+import requests
 
 # Configuration
 API_BASE_URL = "http://localhost:8000"
@@ -43,16 +44,16 @@ def print_step(step_num, text):
     print(f"{BOLD}{GREEN}STEP {step_num}: {text}{RESET}")
 
 def print_info(text):
-    print(f"{BLUE}➜ {text}{RESET}")
+    print(f"{BLUE}> {text}{RESET}")
 
 def print_success(text):
-    print(f"{GREEN}✓ {text}{RESET}")
+    print(f"{GREEN}[OK] {text}{RESET}")
 
 def print_warning(text):
-    print(f"{YELLOW}⚠ {text}{RESET}")
+    print(f"{YELLOW}[!] {text}{RESET}")
 
 def print_error(text):
-    print(f"{RED}✗ {text}{RESET}")
+    print(f"{RED}[ERROR] {text}{RESET}")
 
 def print_json(data):
     print(json.dumps(data, indent=2))
@@ -130,7 +131,7 @@ def fetch_alerts():
 def demo_normal_behavior():
     """Demo: Send normal device events"""
     print_step(1, "Normal Device Behavior")
-    print_info("Sending 3 normal events from sensor-lab-42 over 10 minutes")
+    print_info("Sending 3 normal events from sensor-lab-42 over a few seconds")
     print()
     
     events = [
@@ -194,7 +195,7 @@ def demo_summary():
         print()
         
         if summary.get('alerts'):
-            print_warning(f"⚠ {len(summary['alerts'])} anomalies detected!")
+            print_warning(f"{len(summary['alerts'])} anomalies detected!")
             print()
     else:
         print_error(f"Failed to fetch summary: {summary}")
@@ -230,15 +231,15 @@ def demo_privacy_explanation():
     print()
     
     guarantees = [
-        ("Device Pseudonymization", "Device IDs are hashed using HMAC-SHA256 → Irreversible without secret key"),
-        ("IPv6 Redaction", "Full addresses stored internally but redacted as 2001:db8:85a3:xxxx:xxxx:xxxx:xxxx"),
-        ("No Raw Data Exposure", "Summary and alerts never contain raw device IDs or full addresses"),
+        ("Device Pseudonymization", "Device IDs are represented by a secret-keyed HMAC-SHA256 pseudonym"),
+        ("IPv6 Disclosure", "Full IPv6 addresses are stored internally and omitted from summary and alert responses"),
+        ("Limited API Disclosure", "Summary and alerts do not return raw device IDs or full IPv6 addresses"),
         ("Explainable Alerts", "Alert descriptions explain the threat without leaking operational data"),
-        ("Time-Series Safe", "Even with access to multiple alerts, individual devices cannot be tracked"),
+        ("Stable Correlation", "The same pseudonym supports correlation across events; protect the HMAC secret"),
     ]
     
     for title, description in guarantees:
-        print(f"{BOLD}{GREEN}✓ {title}{RESET}")
+        print(f"{BOLD}{GREEN}[OK] {title}{RESET}")
         print(f"  {description}")
         print()
 
@@ -279,9 +280,7 @@ def run_server_in_background():
     env["PYTHONUNBUFFERED"] = "1"
     
     process = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        [sys.executable, "-m", "uvicorn", "app.main:app", "--reload", "--host", "127.0.0.1", "--port", "8000"],
         env=env
     )
     
@@ -289,7 +288,15 @@ def run_server_in_background():
 
 def main():
     """Main demo flow"""
-    print_header("🔒 PRIVACY-AWARE IPv6 IoT SECURITY MONITORING")
+    parser = argparse.ArgumentParser(description="Run the IPv6 security monitoring demo.")
+    parser.add_argument(
+        "--exit-after-demo",
+        action="store_true",
+        help="Stop the API server when the walkthrough finishes.",
+    )
+    args = parser.parse_args()
+
+    print_header("PRIVACY-AWARE IPv6 IoT SECURITY MONITORING")
     print("AIORI-3 Hackathon Submission Demo")
     print("Team: Last Minute Coders")
     print()
@@ -305,6 +312,7 @@ def main():
     # Wait for server to be ready
     if not wait_for_server():
         server_process.terminate()
+        server_process.wait(timeout=5)
         return 1
     
     print()
@@ -320,23 +328,29 @@ def main():
         demo_api_endpoints()
         
         # Final summary
-        print_header("DEMO COMPLETE ✓")
+        print_header("DEMO COMPLETE")
         print_success("This demo showcased:")
-        print("  • Event ingestion and storage")
-        print("  • Anomaly detection (rapid IPv6 rotation)")
-        print("  • Privacy-preserving pseudonymization")
-        print("  • Redacted alert generation")
-        print("  • Explainable security insights")
+        print("  - Event ingestion and storage")
+        print("  - Anomaly detection (rapid IPv6 rotation)")
+        print("  - Privacy-preserving pseudonymization")
+        print("  - Limited-disclosure alert generation")
+        print("  - Explainable security insights")
         print()
         print_info("The system is still running. Test it with:")
-        print(f"  • API: {API_BASE_URL}/docs (Swagger UI)")
-        print(f"  • Events: POST {API_BASE_URL}/api/v1/events")
-        print(f"  • Summary: GET {API_BASE_URL}/api/v1/summary")
+        print(f"  - API: {API_BASE_URL}/docs (Swagger UI)")
+        print(f"  - Events: POST {API_BASE_URL}/api/v1/events")
+        print(f"  - Summary: GET {API_BASE_URL}/api/v1/summary")
         print()
         print_warning("Press Ctrl+C to stop the server")
         print()
         
-        # Keep server running
+        if args.exit_after_demo:
+            server_process.terminate()
+            server_process.wait(timeout=5)
+            print_success("Server stopped after the demo")
+            return 0
+
+        # Keep server running for manual exploration
         server_process.wait()
         
     except KeyboardInterrupt:
